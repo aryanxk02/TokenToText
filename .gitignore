@@ -1,0 +1,26 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local model outputs and checkpoints
+artifacts/
+*.npz
+*.npy
+
+# IDE and operating-system files
+.DS_Store
+.idea/
+.vscode/
+
+# Local logs and temporary files
+*.log
+*.tmp
+/tmp/

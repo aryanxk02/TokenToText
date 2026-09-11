@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MiniLLM — build a tiny language model from scratch with NumPy.">
+  <title>MiniLLM — From text to transformer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="MiniLLM home">
+        <span class="brand-mark">µ</span>
+        <span><b>Mini</b>LLM <small>from scratch</small></span>
+      </a>
+      <div class="top-actions">
+        <label class="search" for="search-input"><span>⌕</span><input id="search-input" type="search" placeholder="Search the guide…" autocomplete="off"><kbd>⌘ K</kbd></label>
+        <a class="github-link" href="https://github.com" target="_blank" rel="noreferrer">Repository ↗</a>
+        <button class="menu-button" id="menu-button" aria-label="Open navigation">☰</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="side-intro">
+        <span class="eyebrow">A hands-on guide</span>
+        <p>Build the whole path from characters to generated text.</p>
+      </div>
+      <nav id="toc" aria-label="Documentation navigation">
+        <a class="active" href="#overview">Overview</a>
+        <a href="#quickstart">Quick start</a>
+        <a href="#map">Repository map</a>
+        <a href="#code-style">Code style</a>
+        <a href="#tokenizer">01 · Tokenization</a>
+        <a href="#prediction">02 · Next-token prediction</a>
+        <a href="#embeddings">03 · Embeddings</a>
+        <a href="#attention">04 · Causal attention</a>
+        <a href="#transformer">05 · Transformer block</a>
+        <a href="#loss">06 · Loss & logits</a>
+        <a href="#backprop">07 · Backpropagation</a>
+        <a href="#training">08 · Training & Adam</a>
+        <a href="#generation">09 · Generation</a>
+        <a href="#checkpoints">10 · Checkpoints</a>
+        <a href="#testing">11 · Testing</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#next">Next steps</a>
+      </nav>
+      <div class="side-footer">NumPy only · Python 3.10+<br><span>Educational, inspectable, tiny.</span></div>
+    </aside>
+
+    <main id="top">
+      <section class="hero" id="overview">
+        <div class="hero-copy">
+          <span class="eyebrow">A tiny language model, explained</span>
+          <h1>Build the machine<br><em>behind the magic.</em></h1>
+          <p class="lede">MiniLLM is a complete decoder-only transformer written in Python and NumPy. Follow every operation from raw text to the next predicted character—and understand why it works.</p>
+          <div class="hero-buttons"><a class="button primary" href="#quickstart">Start building <span>↓</span></a><a class="button ghost" href="#architecture">See the architecture <span>→</span></a></div>
+          <div class="hero-meta"><span><i class="dot green"></i>Runnable locally</span><span><i class="dot blue"></i>Manual gradients</span><span><i class="dot purple"></i>~200 lines of core code</span></div>
+        </div>
+        <div class="hero-visual" aria-label="MiniLLM pipeline diagram">
+          <div class="orb orb-one"></div><div class="orb orb-two"></div>
+          <div class="pipeline-card">
+            <div class="pipeline-label">THE COMPLETE LOOP</div>
+            <div class="pipeline-row"><span class="pipe-node">text</span><b>→</b><span class="pipe-node cyan">tokens</span><b>→</b><span class="pipe-node violet">vectors</span></div>
+            <div class="pipe-line"><span></span></div>
+            <div class="pipeline-row"><span class="pipe-node orange">attention</span><b>→</b><span class="pipe-node pink">logits</span><b>→</b><span class="pipe-node green-node">next token</span></div>
+            <div class="pipeline-caption">loss → gradients → Adam → repeat</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section quickstart" id="quickstart">
+        <div class="section-kicker">01 / Begin here</div><h2>From zero to generated text.</h2>
+        <p>MiniLLM is deliberately small. Install two dependencies, run the tests, train on the built-in corpus, and sample from the checkpoint.</p>
+        <div class="two-col">
+          <div><h3>Install</h3><div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>python3 -m pip install -r requirements.txt
+python3 -m pytest -q</code></pre></div></div>
+          <div><h3>Train &amp; generate</h3><div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>python3 -m examples.train_tiny --steps 400
+python3 -m examples.generate \
+  --checkpoint artifacts/minillm.npz \
+  --prompt "the " \
+  --tokens 120</code></pre></div></div>
+        </div>
+        <div class="callout"><span class="callout-icon">✦</span><div><strong>What counts as success?</strong><br>On the first run, look for a decreasing loss and a working checkpoint. Coherent language comes later—and requires enough data and training.</div></div>
+      </section>
+
+      <section class="content-section" id="architecture">
+        <div class="section-kicker">02 / The big picture</div><h2>The whole system in one glance.</h2>
+        <p>Every file maps to one visible stage in the learning loop. No framework hides the important operations.</p>
+        <div class="architecture-flow">
+          <div class="flow-step"><span class="flow-num">01</span><strong>Raw text</strong><small>corpus</small></div><span class="flow-arrow">→</span>
+          <div class="flow-step"><span class="flow-num cyan-bg">02</span><strong>Token IDs</strong><small>tokenizer.py</small></div><span class="flow-arrow">→</span>
+          <div class="flow-step"><span class="flow-num violet-bg">03</span><strong>Embeddings</strong><small>token + position</small></div><span class="flow-arrow">→</span>
+          <div class="flow-step"><span class="flow-num orange-bg">04</span><strong>Attention</strong><small>Q · K · V</small></div><span class="flow-arrow">→</span>
+          <div class="flow-step"><span class="flow-num pink-bg">05</span><strong>Logits</strong><small>model.py</small></div>
+        </div>
+        <div class="architecture-bottom"><span>cross-entropy</span><b>→</b><span>manual gradients</span><b>→</b><span>Adam update</span><b>↺</b><span>repeat</span></div>
+      </section>
+
+      <section class="content-section" id="map">
+        <div class="section-kicker">03 / Orientation</div><h2>Know where to look.</h2>
+        <p>The project is small enough to read end to end. Start with the tokenizer, then follow the model forward pass into its backward pass. Classes own state; helper methods keep each numerical step readable.</p>
+        <div class="file-grid">
+          <div class="file-card cyan"><span class="file-tag">INPUT</span><code>tokenizer.py</code><p>Character vocabulary, encode, decode, serialization</p></div>
+          <div class="file-card blue"><span class="file-tag">DATA</span><code>data.py</code><p>Random next-token training windows</p></div>
+          <div class="file-card purple"><span class="file-tag">MATH</span><code>nn.py</code><p>NumPy primitives and Adam optimizer</p></div>
+          <div class="file-card orange"><span class="file-tag">CORE</span><code>model.py</code><p>Transformer, loss, gradients, generation</p></div>
+          <div class="file-card pink"><span class="file-tag">LOOP</span><code>train.py</code><p>Reusable training loop and checkpoints</p></div>
+          <div class="file-card green"><span class="file-tag">RUN</span><code>examples/</code><p>Train and generate from the command line</p></div>
+        </div>
+      </section>
+
+      <section class="content-section" id="code-style">
+        <div class="section-kicker">04 / Code style</div><h2>Read the contract before the math.</h2>
+        <p>The implementation uses small classes, descriptive names, type hints, and docstrings on every function and method. `ForwardCache` names the tensors saved for backpropagation, and `Trainer` owns the optimizer and data generator.</p>
+        <div class="api-grid"><div class="api-card"><code>CharTokenizer</code><p>Owns vocabulary construction and text conversion.</p></div><div class="api-card"><code>BatchGenerator</code><p>Owns random next-token windows.</p></div><div class="api-card"><code>Trainer</code><p>Owns the training loop and checkpointing.</p></div><div class="api-card"><code>MiniGPT</code><p>Owns parameters, forward pass, gradients, and generation.</p></div></div>
+        <div class="callout"><span class="callout-icon">→</span><div><strong>Suggested reading order</strong><br>Read the module docstring, class docstring, and public method docstrings first. Then trace the implementation and tensor shapes.</div></div>
+      </section>
+
+      <section class="content-section split-section" id="tokenizer">
+        <div class="section-kicker">05 / Input</div><h2>Characters become numbers.</h2>
+        <div class="split-copy"><div><p>A language model cannot consume strings directly. `CharTokenizer` builds a vocabulary from the corpus and maps every character to an integer ID.</p><p>Two reserved tokens are always present: <code>&lt;pad&gt;</code> and <code>&lt;unk&gt;</code>. Unknown characters fall back to `<unk>`.</p></div><div class="mini-diagram"><div class="tokens"><span>h</span><span>e</span><span>l</span><span>l</span><span>o</span></div><div class="down">↓ encode</div><div class="ids"><span>3</span><span>2</span><span>4</span><span>4</span><span>5</span></div></div></div>
+        <div class="code-block"><div class="code-top"><span class="filename">minillm/tokenizer.py</span><button class="copy-button">Copy</button></div><pre><code>tokenizer = CharTokenizer("hello")
+ids = tokenizer.encode("hello")
+text = tokenizer.decode(ids)
+
+# ids is a list[int]; text == "hello"</code></pre></div>
+      </section>
+
+      <section class="content-section" id="prediction">
+        <div class="section-kicker">06 / Learning objective</div><h2>Predict the next token.</h2>
+        <p>Training shifts a sequence by one position. The model sees the input row and is graded against the target row.</p>
+        <div class="shift-table"><div class="shift-label">input</div><div class="shift-values"><span>t</span><span>h</span><span>e</span><span> </span><span>m</span><span>o</span></div><div class="shift-label target">target</div><div class="shift-values target-row"><span>h</span><span>e</span><span> </span><span>m</span><span>o</span><span>d</span></div></div>
+        <p class="small-note">For a batch, both arrays have shape <code>(batch, time)</code>. The causal mask ensures position <code>t</code> cannot see target information from the future.</p>
+      </section>
+
+      <section class="content-section" id="embeddings">
+        <div class="section-kicker">07 / Representation</div><h2>IDs become vectors.</h2>
+        <p>Two learned lookup tables give every token both an identity and a location in context.</p>
+        <div class="equation-card"><div class="eq-label">THE INPUT REPRESENTATION</div><div class="equation">x<sub>0</sub>[b, t] = token_embedding[token_id[b, t]] + position_embedding[t]</div><div class="shape-row"><span>token_embedding</span><code>(vocab_size, d_model)</code><span>→</span><span>position_embedding</span><code>(context_length, d_model)</code></div></div>
+        <div class="insight-grid"><div><b>Token identity</b><p>“What character is this?”</p></div><div><b>Position</b><p>“Where is it in the context?”</p></div><div><b>Combined vector</b><p>“What and where, together.”</p></div></div>
+      </section>
+
+      <section class="content-section attention-section" id="attention">
+        <div class="section-kicker">08 / Context</div><h2>Attention lets tokens look left.</h2>
+        <p>Each representation creates a query, key, and value. Queries ask what information is relevant; keys describe what each position offers; values carry the information.</p>
+        <div class="code-block"><div class="code-top"><span class="filename">the attention equation</span><button class="copy-button">Copy</button></div><pre><code>Q, K, V = x₀ Wqkv
+scores  = QKᵀ / √head_dim
+weights = softmax(scores)
+output  = weights V</code></pre></div>
+        <div class="mask-visual"><div class="mask-copy"><h3>The causal rule</h3><p>At position <code>t</code>, attention can use positions <code>0…t</code>, never <code>t+1…</code>. The upper triangle is replaced with a very negative score before softmax.</p></div><div class="matrix"><span class="on">●</span><span class="off">·</span><span class="off">·</span><span class="off">·</span><span class="on">●</span><span class="on">●</span><span class="off">·</span><span class="off">·</span><span class="on">●</span><span class="on">●</span><span class="on">●</span><span class="off">·</span><span class="on">●</span><span class="on">●</span><span class="on">●</span><span class="on">●</span><small>past ← time → future</small></div></div>
+      </section>
+
+      <section class="content-section" id="transformer">
+        <div class="section-kicker">09 / Transformer block</div><h2>Attention, normalization, and memory.</h2>
+        <p>MiniLLM uses one decoder block. Residual paths keep the original signal available while each sub-layer learns a useful transformation.</p>
+        <div class="block-stack"><div class="block-row"><span>input</span><b>→</b><strong>causal self-attention</strong><b>→</b><span>residual add</span></div><div class="block-row"><span>LayerNorm</span><b>→</b><strong>linear → GELU → linear</strong><b>→</b><span>residual add</span></div><div class="block-row final"><span>LayerNorm</span><b>→</b><strong>vocabulary logits</strong></div></div>
+        <div class="two-col"><div><h3>LayerNorm</h3><p>Normalizes features for each token independently, then restores useful scale and offset through learned <code>gamma</code> and <code>beta</code>.</p></div><div><h3>MLP</h3><p>Transforms each position independently. The inner dimension <code>d_ff</code> is wider than <code>d_model</code>, giving the network room to compute.</p></div></div>
+      </section>
+
+      <section class="content-section" id="loss">
+        <div class="section-kicker">10 / Objective</div><h2>Scores become a learning signal.</h2>
+        <p>The output head turns each hidden vector into one score per vocabulary item. Softmax turns scores into probabilities; cross-entropy rewards the correct next token.</p>
+        <div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>logits = final_representation @ Wlm + blm
+probabilities = softmax(logits)
+loss = -log(probabilities[correct_token])</code></pre></div>
+        <div class="probability-bar"><div class="prob-label">next-token distribution</div><div class="bars"><i style="height:34%"></i><i style="height:62%"></i><i class="hot" style="height:92%"></i><i style="height:24%"></i><i style="height:48%"></i><i style="height:18%"></i><i style="height:29%"></i></div><div class="bar-caption"><span>low probability</span><b>correct token ↑</b><span>vocabulary</span></div></div>
+      </section>
+
+      <section class="content-section" id="backprop">
+        <div class="section-kicker">11 / Learning mechanics</div><h2>No autograd. Every derivative is visible.</h2>
+        <p><code>loss_and_backward()</code> walks the computation graph in reverse and returns one gradient array for every parameter. The gradient shapes exactly match the parameter shapes.</p>
+        <div class="backward-flow"><span>loss</span><b>↓</b><span>output head</span><b>↓</b><span>LayerNorm</span><b>↓</b><span>MLP + GELU</span><b>↓</b><span>attention</span><b>↓</b><span>embeddings</span></div>
+        <div class="callout purple-callout"><span class="callout-icon">∂</span><div><strong>How do we know the math is right?</strong><br>The finite-difference test compares the analytic gradient to <code>(loss(θ+ε) − loss(θ−ε)) / 2ε</code>. Matching values are strong evidence that the implementation is wired correctly.</div></div>
+      </section>
+
+      <section class="content-section" id="training">
+        <div class="section-kicker">12 / Optimization</div><h2>Train, measure, update, repeat.</h2>
+        <div class="train-loop"><div><span class="loop-number">01</span><strong>Sample</strong><small>random windows</small></div><div><span class="loop-number">02</span><strong>Forward</strong><small>compute logits</small></div><div><span class="loop-number">03</span><strong>Backward</strong><small>compute gradients</small></div><div><span class="loop-number">04</span><strong>Adam</strong><small>update weights</small></div></div>
+        <div class="code-block"><div class="code-top"><span class="filename">minillm/train.py</span><button class="copy-button">Copy</button></div><pre><code>trainer = Trainer(model, token_ids, batch_size=16)
+losses = trainer.fit(
+    steps=400,
+    checkpoint="artifacts/minillm.npz",
+    tokenizer_data=tokenizer.to_dict(),
+)</code></pre></div>
+        <p>Adam maintains moving averages of gradients and squared gradients. MiniLLM also clips gradient elements to <code>[-1, 1]</code> as a simple stability guard.</p>
+      </section>
+
+      <section class="content-section" id="generation">
+        <div class="section-kicker">13 / Inference</div><h2>Generation is a loop with memory.</h2>
+        <p>Start with a prompt, predict one token, append it, and predict again. The model keeps only the most recent <code>context_length</code> tokens.</p>
+        <div class="generation-loop"><div class="gen-prompt">the <span class="cursor"></span></div><span>→</span><div class="gen-token">m</div><span>→</span><div class="gen-prompt">the m<span class="cursor"></span></div><span>→</span><div class="gen-token">o</div></div>
+        <div class="two-col"><div><h3>Temperature</h3><p>Divide logits by temperature before softmax. Lower values are more predictable; higher values are more varied.</p><div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>--temperature 0.7</code></pre></div></div><div><h3>Top-k</h3><p>Keep only the k highest-scoring candidates. This prevents very unlikely tokens from being sampled.</p><div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>model.generate(ids, max_new_tokens=120,
+    rng=rng, temperature=0.7, top_k=8)</code></pre></div></div></div>
+      </section>
+
+      <section class="content-section" id="checkpoints">
+        <div class="section-kicker">14 / Persistence</div><h2>Save the learned machine.</h2>
+        <p>A checkpoint stores the model parameters, configuration, and tokenizer vocabulary in a NumPy <code>.npz</code> file.</p>
+        <div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>model.save("artifacts/minillm.npz", tokenizer.to_dict())
+
+model, tokenizer_data = MiniGPT.load("artifacts/minillm.npz")
+tokenizer = CharTokenizer.from_dict(tokenizer_data)</code></pre></div>
+        <div class="warning"><b>Local experiments only.</b> Checkpoint loading uses NumPy object deserialization. Do not load untrusted checkpoint files.</div>
+      </section>
+
+      <section class="content-section" id="testing">
+        <div class="section-kicker">15 / Confidence</div><h2>Tests that catch real mistakes.</h2>
+        <div class="test-grid"><div class="test-item"><span>✓</span><div><b>Tokenizer round-trip</b><small>encode → decode returns the source text</small></div></div><div class="test-item"><span>✓</span><div><b>Causal mask</b><small>future attention probabilities are zero</small></div></div><div class="test-item"><span>✓</span><div><b>Shape checks</b><small>forward tensors have expected dimensions</small></div></div><div class="test-item"><span>✓</span><div><b>Learning behavior</b><small>loss decreases on a predictable corpus</small></div></div><div class="test-item"><span>✓</span><div><b>Gradient check</b><small>analytic and finite-difference values agree</small></div></div></div>
+        <div class="code-block"><div class="code-top"><span class="filename"></span><button class="copy-button">Copy</button></div><pre><code>python3 -m pytest -q</code></pre></div>
+      </section>
+
+      <section class="content-section" id="troubleshooting">
+        <div class="section-kicker">16 / When things break</div><h2>Common problems, clear fixes.</h2>
+        <details open><summary><span>ModuleNotFoundError</span><b>+</b></summary><p>Run examples from the repository root as modules: <code>python3 -m examples.train_tiny</code>. This keeps the package on Python’s import path.</p></details>
+        <details><summary><span>Loss becomes NaN</span><b>+</b></summary><p>Lower the learning rate, reduce model width, verify the corpus is non-empty, and confirm that <code>context_length &lt; len(token_ids)</code>. The implementation already uses stabilized softmax and gradient clipping.</p></details>
+        <details><summary><span>Generated text is nonsense</span><b>+</b></summary><p>Train longer, use a larger and cleaner corpus, and tune temperature. A few dozen steps only verifies the pipeline; it does not create a useful language model.</p></details>
+        <details><summary><span>Runtime is slow</span><b>+</b></summary><p>This implementation favors clarity over performance. Reduce batch size, context length, or model width while experimenting.</p></details>
+      </section>
+
+      <section class="content-section next-section" id="next">
+        <div class="section-kicker">17 / Keep building</div><h2>The smallest useful next steps.</h2>
+        <p>Once the vertical slice feels familiar, extend one dimension at a time.</p>
+        <div class="next-grid"><span>validation split</span><span>more gradient tests</span><span>learning-rate schedule</span><span>dropout</span><span>multiple blocks</span><span>subword tokenizer</span><span>KV cache</span><span>safer checkpoints</span></div>
+        <div class="closing"><span class="closing-mark">µ</span><p>At every position, MiniLLM asks:<br><em>“Given the tokens to my left, what comes next?”</em></p></div>
+      </section>
+      <footer><span>MiniLLM · built to be read</span><span>NumPy only · educational by design</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast">Copied to clipboard</div>
+  <script src="app.js"></script>
+</body>
+</html>
